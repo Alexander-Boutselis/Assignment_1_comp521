@@ -11,20 +11,27 @@
 
 ssize_t proc_read(struct file *file, char *buf, size_t count, loff_t *pos);
 
+//Use struct proc_ops for modern kernels
+static const struct proc_ops proc_ops = {
+	.proc_read = proc_read
+};
+
+/*
 static struct file_operations proc_ops = {
 	.owner = THIS_MODULE,
 	.read = proc_read
 };
+*/
 
 //Module load initialization
-int proc_init(void){
-	proc_create(PROC_NAME, 0666, NULL, &proc_ops);
-	return 0;
+static int __init proc_init(void) {
+    proc_create(PROC_NAME, 0666, NULL, &proc_ops);
+    return 0;
 }
 
 //Module unload exit
-void proc_exit(void){
-	remove_proc_entry(PROC_NAME, NULL);
+static void __exit proc_exit(void) {
+    remove_proc_entry(PROC_NAME, NULL);
 }
 
 //Read Jiffies Function
@@ -40,11 +47,13 @@ ssize_t proc_read(struct file *file, char __user *usr_buf, size_t count, loff_t 
 
 	completed = 1;
 
-	rv + sprintf(buffer, "Elapsed jiffies: %lu\n", jiffies);
+	rv = sprintf(buffer, "Elapsed jiffies: %lu\n", jiffies);
 
 	//Copies the contents of the buffer to userspace usr_buf
-	copy_to_user(usr_buf, buffer, rv);
-
+	if (copy_to_user(usr_buf, buffer, rv)) {	
+		return -1;
+	}
+	
 	return rv;
 }
 
@@ -52,5 +61,7 @@ ssize_t proc_read(struct file *file, char __user *usr_buf, size_t count, loff_t 
 module_init(proc_init);
 module_exit(proc_exit);
 
-MODULE_DESCRIPTION("Assingment 1 Jiffies");
-MODUEL_AUTHOR('Alexander Boutslies');
+// Module metadata
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Assignment 1 Jiffies");
+MODULE_AUTHOR("Alexander Boutselis");
