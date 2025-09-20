@@ -1,46 +1,131 @@
-abooty13@Comp521UbuntuComputer:~/Comp521/Assignment_1/Assignment_1_comp521$ make
-make -C /lib/modules/6.14.0-29-generic/build M=/home/abooty13/Comp521/Assignment_1/Assignment_1_comp521 modules
-make[1]: Entering directory '/usr/src/linux-headers-6.14.0-29-generic'
-make[2]: Entering directory '/home/abooty13/Comp521/Assignment_1/Assignment_1_comp521'
-warning: the compiler differs from the one used to build the kernel
-  The kernel was built by: aarch64-linux-gnu-gcc-14 (Ubuntu 14.2.0-19ubuntu2) 14.2.0
-  You are using:           gcc-14 (Ubuntu 14.2.0-19ubuntu2) 14.2.0
-  CC [M]  jiffies.o
-jiffies.c:20:5: warning: no previous prototype for ‘proc_init’ [-Wmissing-prototypes]
-   20 | int proc_init(void){
-      |     ^~~~~~~~~
-jiffies.c: In function ‘proc_init’:
-jiffies.c:21:44: error: passing argument 4 of ‘proc_create’ from incompatible pointer type [-Wincompatible-pointer-types]
-   21 |         proc_create(PROC_NAME, 0666, NULL, &proc_ops);
-      |                                            ^~~~~~~~~
-      |                                            |
-      |                                            struct file_operations *
-In file included from jiffies.c:5:
-/usr/src/linux-headers-6.14.0-29-generic/include/linux/proc_fs.h:114:122: note: expected ‘const struct proc_ops *’ but argument is of type ‘struct file_operations *’
-  114 | *name, umode_t mode, struct proc_dir_entry *parent, const struct proc_ops *proc_ops);
-      |                                                     ~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~
+// jiffies.c
+#include <linux/init.h>        // Needed for module init/exit macros
+#include <linux/module.h>      // Core header for loading LKMs into the kernel
+#include <linux/kernel.h>      // Kernel info, macros like KERN_INFO
+#include <linux/proc_fs.h>     // For creating entries in /proc
+#include <linux/uaccess.h>     // For copy_to_user
+#include <linux/jiffies.h>     // Provides the global jiffies counter
 
-jiffies.c: At top level:
-jiffies.c:26:6: warning: no previous prototype for ‘proc_exit’ [-Wmissing-prototypes]
-   26 | void proc_exit(void){
-      |      ^~~~~~~~~
-jiffies.c: In function ‘proc_read’:
-jiffies.c:43:12: warning: value computed is not used [-Wunused-value]
-   43 |         rv + sprintf(buffer, "Elapsed jiffies: %lu\n", jiffies);
-      |         ~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-jiffies.c: At top level:
-jiffies.c:56:15: warning: multi-character literal with 19 characters exceeds 'int' size of 4 bytes
-   56 | MODUEL_AUTHOR('Alexander Boutslies');
-      |               ^~~~~~~~~~~~~~~~~~~~~
-jiffies.c:56:15: error: expected declaration specifiers or ‘...’ before '\x6c696573'
-jiffies.c: In function ‘proc_read’:
-jiffies.c:46:9: warning: ignoring return value of ‘copy_to_user’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
-   46 |         copy_to_user(usr_buf, buffer, rv);
-      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-make[4]: *** [/usr/src/linux-headers-6.14.0-29-generic/scripts/Makefile.build:207: jiffies.o] Error 1
-make[3]: *** [/usr/src/linux-headers-6.14.0-29-generic/Makefile:2001: .] Error 2
-make[2]: *** [/usr/src/linux-headers-6.14.0-29-generic/Makefile:251: __sub-make] Error 2
-make[2]: Leaving directory '/home/abooty13/Comp521/Assignment_1/Assignment_1_comp521'
-make[1]: *** [Makefile:251: __sub-make] Error 2
-make[1]: Leaving directory '/usr/src/linux-headers-6.14.0-29-generic'
-make: *** [Makefile:5: all] Error 2
+#define BUFFER_SIZE 128
+#define PROC_NAME "jiffies"
+
+// Forward declaration of the read function
+ssize_t proc_read(struct file *file, char __user *usr_buf,
+                  size_t count, loff_t *pos);
+
+// Use struct proc_ops for modern kernels
+static const struct proc_ops proc_ops = {
+    .proc_read = proc_read,
+};
+
+// Initialization function: runs when the module is loaded
+static int __init proc_init(void) {
+    proc_create(PROC_NAME, 0666, NULL, &proc_ops);
+    return 0;
+}
+
+// Cleanup function: runs when the module is unloaded
+static void __exit proc_exit(void) {
+    remove_proc_entry(PROC_NAME, NULL);
+}
+
+// Read function for /proc/jiffies
+ssize_t proc_read(struct file *file, char __user *usr_buf,
+                  size_t count, loff_t *pos) {
+    int rv = 0;
+    char buffer[BUFFER_SIZE];
+    static int completed = 0;
+
+    if (completed) {
+        completed = 0;
+        return 0;
+    }
+
+    completed = 1;
+
+    rv += sprintf(buffer, "Elapsed jiffies: %lu\n", jiffies);
+
+    // Copy to userspace and check for errors
+    if (copy_to_user(usr_buf, buffer, rv)) {
+        return -EFAULT;
+    }
+
+    return rv;
+}
+
+// Register init and exit functions
+module_init(proc_init);
+module_exit(proc_exit);
+
+// Module metadata
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Assignment 1 Jiffies");
+MODULE_AUTHOR("Alexander Boutselis");
+
+
+// seconds.c
+#include <linux/init.h>        // Needed for module init/exit macros
+#include <linux/module.h>      // Core header for LKMs
+#include <linux/kernel.h>      // Kernel info, macros
+#include <linux/proc_fs.h>     // For creating /proc entries
+#include <linux/uaccess.h>     // For copy_to_user
+#include <linux/time.h>        // For get_seconds()
+
+#define BUFFER_SIZE 128
+#define PROC_NAME "seconds"
+
+ssize_t proc_read(struct file *file, char __user *usr_buf,
+                  size_t count, loff_t *pos);
+
+time_t start_time;
+
+// Use struct proc_ops instead of file_operations
+static const struct proc_ops proc_ops = {
+    .proc_read = proc_read,
+};
+
+// Initialization: create /proc/seconds and record start time
+static int __init proc_init(void) {
+    proc_create(PROC_NAME, 0666, NULL, &proc_ops);
+    start_time = get_seconds();
+    return 0;
+}
+
+// Cleanup: remove /proc/seconds
+static void __exit proc_exit(void) {
+    remove_proc_entry(PROC_NAME, NULL);
+}
+
+// Read function for /proc/seconds
+ssize_t proc_read(struct file *file, char __user *usr_buf,
+                  size_t count, loff_t *pos) {
+    int rv = 0;
+    char buffer[BUFFER_SIZE];
+    static int completed = 0;
+    time_t current_time = get_seconds();
+    int elapsed_seconds = current_time - start_time;
+
+    if (completed) {
+        completed = 0;
+        return 0;
+    }
+
+    completed = 1;
+
+    rv += sprintf(buffer, "Elapsed seconds: %d\n", elapsed_seconds);
+
+    if (copy_to_user(usr_buf, buffer, rv)) {
+        return -EFAULT;
+    }
+
+    return rv;
+}
+
+// Register init and exit
+module_init(proc_init);
+module_exit(proc_exit);
+
+// Module metadata
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Assignment 1 Seconds");
+MODULE_AUTHOR("Alexander Boutselis");
