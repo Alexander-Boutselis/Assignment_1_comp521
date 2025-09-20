@@ -1,0 +1,46 @@
+abooty13@Comp521UbuntuComputer:~/Comp521/Assignment_1/Assignment_1_comp521$ make
+make -C /lib/modules/6.14.0-29-generic/build M=/home/abooty13/Comp521/Assignment_1/Assignment_1_comp521 modules
+make[1]: Entering directory '/usr/src/linux-headers-6.14.0-29-generic'
+make[2]: Entering directory '/home/abooty13/Comp521/Assignment_1/Assignment_1_comp521'
+warning: the compiler differs from the one used to build the kernel
+  The kernel was built by: aarch64-linux-gnu-gcc-14 (Ubuntu 14.2.0-19ubuntu2) 14.2.0
+  You are using:           gcc-14 (Ubuntu 14.2.0-19ubuntu2) 14.2.0
+  CC [M]  jiffies.o
+jiffies.c:20:5: warning: no previous prototype for ‘proc_init’ [-Wmissing-prototypes]
+   20 | int proc_init(void){
+      |     ^~~~~~~~~
+jiffies.c: In function ‘proc_init’:
+jiffies.c:21:44: error: passing argument 4 of ‘proc_create’ from incompatible pointer type [-Wincompatible-pointer-types]
+   21 |         proc_create(PROC_NAME, 0666, NULL, &proc_ops);
+      |                                            ^~~~~~~~~
+      |                                            |
+      |                                            struct file_operations *
+In file included from jiffies.c:5:
+/usr/src/linux-headers-6.14.0-29-generic/include/linux/proc_fs.h:114:122: note: expected ‘const struct proc_ops *’ but argument is of type ‘struct file_operations *’
+  114 | *name, umode_t mode, struct proc_dir_entry *parent, const struct proc_ops *proc_ops);
+      |                                                     ~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~
+
+jiffies.c: At top level:
+jiffies.c:26:6: warning: no previous prototype for ‘proc_exit’ [-Wmissing-prototypes]
+   26 | void proc_exit(void){
+      |      ^~~~~~~~~
+jiffies.c: In function ‘proc_read’:
+jiffies.c:43:12: warning: value computed is not used [-Wunused-value]
+   43 |         rv + sprintf(buffer, "Elapsed jiffies: %lu\n", jiffies);
+      |         ~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+jiffies.c: At top level:
+jiffies.c:56:15: warning: multi-character literal with 19 characters exceeds 'int' size of 4 bytes
+   56 | MODUEL_AUTHOR('Alexander Boutslies');
+      |               ^~~~~~~~~~~~~~~~~~~~~
+jiffies.c:56:15: error: expected declaration specifiers or ‘...’ before '\x6c696573'
+jiffies.c: In function ‘proc_read’:
+jiffies.c:46:9: warning: ignoring return value of ‘copy_to_user’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+   46 |         copy_to_user(usr_buf, buffer, rv);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+make[4]: *** [/usr/src/linux-headers-6.14.0-29-generic/scripts/Makefile.build:207: jiffies.o] Error 1
+make[3]: *** [/usr/src/linux-headers-6.14.0-29-generic/Makefile:2001: .] Error 2
+make[2]: *** [/usr/src/linux-headers-6.14.0-29-generic/Makefile:251: __sub-make] Error 2
+make[2]: Leaving directory '/home/abooty13/Comp521/Assignment_1/Assignment_1_comp521'
+make[1]: *** [Makefile:251: __sub-make] Error 2
+make[1]: Leaving directory '/usr/src/linux-headers-6.14.0-29-generic'
+make: *** [Makefile:5: all] Error 2
